@@ -201,6 +201,93 @@ def addRbxmsFromFolder(baseFileDir, tree):
 	if oldDir is not None:
 		os.chdir(oldDir) #  Pop the previous directory
 
+def findLuasInDir(dir):
+	matchedFiles = []
+	for file in os.listdir(dir):
+		if fnmatch.fnmatch(file, '*.lua'):
+			matchedFiles.append(file)
+	return matchedFiles
+
+def findLuasRecursive(searchDir):
+	foundPaths = []
+	def visitfunc(arg, dirname, names):
+		luas = findLuasInDir(dirname)
+		for lua in luas:
+			root, ext = os.path.splitext(lua)
+			fullRelPath = os.path.join(dirname, lua)
+			# print(lua + "=" + root + "+" + ext)
+			if ext == '.lua' and os.path.isfile(fullRelPath):
+				foundPaths.append(fullRelPath)
+	os.path.walk(searchDir, visitfunc, "")
+	return foundPaths
+
+def addLuasFromFolder(baseFileDir, tree):
+	seenReferents = countReferentObjects(tree)
+	oldDir = os.getcwd()  #  Push the previous directory
+	os.chdir(baseFileDir)
+	elementsToSort = []
+	components = findLuasRecursive('.')
+	for component in components:
+		# Make sure the directory that we are adding the component to exists in the RBXL file
+		xmlEle = findXmlElementForPath(tree, component)
+		if xmlEle is not None:
+			componentFp = open(component)
+			filename = os.path.basename(component)
+			base, _ = os.path.splitext(filename)
+
+			if base is not None and componentFp is not None:
+				scriptType = "LocalScript"
+
+				base, subext = os.path.splitext(base)
+				if base is not None:
+					subext = subext.lower()
+					if subext == ".script":
+						scriptType = "Script"
+					elif subext == ".modulescript":
+						scriptType = "ModuleScript"
+					elif subext == ".localscript":
+						scriptType = "LocalScript"
+					elif subext == "":
+						scriptType = "LocalScript"
+					else:
+						print("Lua sub-extension is %s, assuming %s" % (subext, scriptType))
+
+				item = etree.fromstring((
+					'<Item class="" referent="">\n'
+					'	<Properties>\n'
+					'		<bool name="Disabled">false</bool>\n'
+					'		<Content name="LinkedSource"><null></null></Content>\n'
+					'		<string name="Name"></string>\n'
+					'		<ProtectedString name="Source"></ProtectedString>\n'
+					'	</Properties>\n'
+					'</Item>\n'
+				))
+
+				item.set("class", scriptType)
+				item.set("referent", makeNewRefId())
+
+				# Name
+				item[0][2].text = base
+
+				# Source
+				item[0][3].text = componentFp.read()
+
+				#  print("Adding lua: %s" % (filename))
+				xmlEle.append(item)
+				## Since we just added an lua file to this "folder" we need to remember to sort it based on its indices later
+				if xmlEle not in elementsToSort:
+					elementsToSort.append(xmlEle)
+
+			componentFp.close()
+
+	#  Sort XML objects based on indices
+	for parentElement in elementsToSort:
+		# children = list(parentElement)
+		parentElement[:] = sorted(parentElement, key=lambda xmlEle: findIndexForElement(xmlEle), reverse=False)
+		# print("Sorting xml elements %s" % (parentElement.xpath("Properties/string[@name='Name'][1]")[0].text))
+	if oldDir is not None:
+		os.chdir(oldDir) #  Pop the previous directory
+
 def parseRBXRefToNumber(rbxRefString):
 	result = None
 	prog = re.compile("RBX(\d+)")
@@ -305,9 +392,11 @@ def run():
 		if os.path.exists(allPath):
 			print(allPath)
 			addRbxmsFromFolder(allPath, tree)
+			addLuasFromFolder(allPath, tree)
 		if os.path.exists(rootPath):
 			print(rootPath)
 			addRbxmsFromFolder(rootPath, tree)
+			addLuasFromFolder(rootPath, tree)
 
 		outFileName = root + "_output.rbxlx"
 
