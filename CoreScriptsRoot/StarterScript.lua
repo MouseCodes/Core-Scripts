@@ -3,7 +3,8 @@
 -- Please note that these are loaded in a specific order to diminish errors/perceived load time by user
 local scriptContext = game:GetService("ScriptContext")
 local touchEnabled = game:GetService("UserInputService").TouchEnabled
-
+local waitForContents = game:WaitForChild("Workspace", "ServerStorage", "ServerScriptService", "ReplicatedStorage", "StarterPack", "StarterPlayer", "StarterGui", "Players")
+waitForContents()
 Game:GetService("CoreGui"):WaitForChild("RobloxGui")
 local screenGui = Game:GetService("CoreGui"):FindFirstChild("RobloxGui")
 
