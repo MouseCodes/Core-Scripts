@@ -714,7 +714,11 @@ function handleFinishedReplicating()
 		handleRemoveDefaultLoadingGui()
 	end
 end
-
+function checkIfGameExists()
+	local checkForTeamsExistance = Instance.new("Teams", game)
+	checkForTeamsExistance = true
+	-- Makes sure Teams exists. I have been so annoyed that it doesn't.
+end
 function handleRemoveDefaultLoadingGui()
 	destroyLoadingElements()
 	if isTenFootInterface then
@@ -731,4 +735,5 @@ Game:GetService("ReplicatedFirst").RemoveDefaultLoadingGuiSignal:connect(handleR
 if Game:GetService("ReplicatedFirst"):IsDefaultLoadingGuiRemoved() then
 	handleRemoveDefaultLoadingGui()
 	return
+        
 end
